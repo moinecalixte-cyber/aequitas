@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use aequitas_core::{Blockchain, Block, Transaction, Address};
-use aequitas_network::node::{Mempool, NetworkState};
+use aequitas_network::node::NetworkState;
+use crate::mempool::Mempool;
 
 /// RPC server state
 pub struct RpcState {
