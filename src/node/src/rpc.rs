@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use aequitas_core::{Blockchain, Block, Transaction, Address};
-use crate::mempool::Mempool;
+use aequitas_network::node::{Mempool, NetworkState};
 
 /// RPC server state
 pub struct RpcState {
@@ -18,6 +18,7 @@ pub struct RpcState {
     pub mempool: Arc<RwLock<Mempool>>,
     pub broadcast_tx: mpsc::Sender<Block>,
     pub chain_path: std::path::PathBuf,
+    pub net_state: Arc<RwLock<NetworkState>>,
 }
 
 use tower_http::cors::{CorsLayer, Any};
@@ -38,6 +39,7 @@ pub fn create_router(state: Arc<RpcState>) -> Router {
         .route("/balance/:address", get(get_balance))
         .route("/mempool", get(get_mempool))
         .route("/tx/send", post(send_transaction))
+        .route("/peers", get(get_peers))
         .route("/getblocktemplate", post(get_block_template))
         .route("/submitblock", post(submit_block))
         .layer(cors)
@@ -64,6 +66,7 @@ struct InfoResponse {
 async fn get_info(State(state): State<Arc<RpcState>>) -> Json<InfoResponse> {
     let chain = state.blockchain.read().await;
     let mempool = state.mempool.read().await;
+    let net = state.net_state.read().await;
     
     Json(InfoResponse {
         version: "0.1.0".to_string(),
@@ -71,8 +74,14 @@ async fn get_info(State(state): State<Arc<RpcState>>) -> Json<InfoResponse> {
         height: chain.height(),
         difficulty: chain.difficulty(),
         mempool_size: mempool.size(),
-        peers: 0, // TODO: Get from network
+        peers: net.connected_peers.len(),
     })
+}
+
+/// Get connected peers
+async fn get_peers(State(state): State<Arc<RpcState>>) -> Json<Vec<aequitas_network::node::PeerInfoSimple>> {
+    let net = state.net_state.read().await;
+    Json(net.connected_peers.clone())
 }
 
 /// Block response

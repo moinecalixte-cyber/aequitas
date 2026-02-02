@@ -212,6 +212,18 @@ async fn run_node(cli: &Cli) -> anyhow::Result<()> {
     // Create broadcast channel for RPC -> P2P propagation
     let (p2p_broadcast_tx, mut p2p_broadcast_rx) = tokio::sync::mpsc::channel(100);
 
+    // Start P2P network
+    let p2p_config = aequitas_network::node::NodeConfig {
+        listen_addr: config.p2p_addr.parse().unwrap_or_else(|_| "/ip4/0.0.0.0/tcp/23420".parse().unwrap()),
+        bootstrap_peers: Vec::new(),
+        testnet: config.network == "testnet",
+        enable_mdns: true,
+    };
+    
+    let mut p2p_node = aequitas_network::Node::new(p2p_config);
+    let mut net_events = p2p_node.take_event_receiver().unwrap();
+    let net_state = p2p_node.state.clone();
+
     // Start RPC server
     if config.rpc_enabled {
         let rpc_state = Arc::new(RpcState {
@@ -219,6 +231,7 @@ async fn run_node(cli: &Cli) -> anyhow::Result<()> {
             mempool: mempool.clone(),
             broadcast_tx: p2p_broadcast_tx.clone(),
             chain_path: chain_path.clone(),
+            net_state: net_state.clone(),
         });
         
         let router = create_router(rpc_state);
@@ -230,17 +243,6 @@ async fn run_node(cli: &Cli) -> anyhow::Result<()> {
             axum::serve(listener, router).await.unwrap();
         });
     }
-    
-    // Start P2P network
-    let p2p_config = aequitas_network::node::NodeConfig {
-        listen_addr: config.p2p_addr.parse().unwrap_or_else(|_| "/ip4/0.0.0.0/tcp/23420".parse().unwrap()),
-        bootstrap_peers: Vec::new(),
-        testnet: config.network == "testnet",
-        enable_mdns: true,
-    };
-    
-    let mut p2p_node = aequitas_network::Node::new(p2p_config);
-    let mut net_events = p2p_node.take_event_receiver().unwrap();
     
     let blockchain_p2p = blockchain.clone();
     let mempool_p2p = mempool.clone();

@@ -7,6 +7,7 @@ use tokio::sync::{mpsc, RwLock};
 use libp2p::{
     gossipsub,
     mdns,
+    kad,
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, noise, yamux, Multiaddr, PeerId,
 };
@@ -25,11 +26,11 @@ pub const BLOCKS_TOPIC: &str = "aequitas/blocks/1";
 /// Topic for transaction announcements  
 pub const TX_TOPIC: &str = "aequitas/tx/1";
 
-/// Combined network behaviour
 #[derive(NetworkBehaviour)]
 pub struct AequitasBehaviour {
     pub gossipsub: gossipsub::Behaviour,
     pub mdns: mdns::tokio::Behaviour,
+    pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
 }
 
 /// Network node configuration
@@ -52,6 +53,25 @@ impl Default for NodeConfig {
     }
 }
 
+/// Network state for sharing with RPC
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PeerInfoSimple {
+    pub id: String,
+    pub addr: Option<String>,
+}
+
+pub struct NetworkState {
+    pub connected_peers: Vec<PeerInfoSimple>,
+}
+
+impl NetworkState {
+    pub fn new() -> Self {
+        Self {
+            connected_peers: Vec::new(),
+        }
+    }
+}
+
 /// Network event types
 #[derive(Clone, Debug)]
 pub enum NetworkEvent {
@@ -66,6 +86,7 @@ pub struct Node {
     config: NodeConfig,
     local_peer_id: PeerId,
     _peer_manager: Arc<RwLock<PeerManager>>,
+    pub state: Arc<RwLock<NetworkState>>,
     event_tx: mpsc::Sender<NetworkEvent>,
     event_rx: Option<mpsc::Receiver<NetworkEvent>>,
 }
@@ -80,6 +101,7 @@ impl Node {
             config,
             local_peer_id,
             _peer_manager: Arc::new(RwLock::new(PeerManager::new())),
+            state: Arc::new(RwLock::new(NetworkState::new())),
             event_tx,
             event_rx: Some(event_rx),
         }
@@ -100,12 +122,18 @@ impl Node {
                     .build()
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
+                let kademlia = kad::Behaviour::new(
+                    key.public().to_peer_id(),
+                    kad::store::MemoryStore::new(key.public().to_peer_id()),
+                );
+
                 Ok(AequitasBehaviour {
                     gossipsub: gossipsub::Behaviour::new(
                         gossipsub::MessageAuthenticity::Signed(key.clone()),
                         gossipsub_config,
                     )?,
                     mdns: mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?,
+                    kademlia,
                 })
             })?
             .build();
@@ -116,6 +144,9 @@ impl Node {
         swarm.listen_on(self.config.listen_addr.clone())?;
 
         log::info!("P2P Node started on {}", self.config.listen_addr);
+
+        // Set mode to server to be reachable by others
+        swarm.behaviour_mut().kademlia.set_mode(Some(kad::Mode::Server));
 
         loop {
             tokio::select! {
@@ -131,7 +162,7 @@ impl Node {
                         for (peer_id, addr) in list {
                             log::info!("🌐 P2P: Discovered new peer {} at {}", peer_id, addr);
                             swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
-                            let _ = swarm.dial(addr);
+                            swarm.behaviour_mut().kademlia.add_address(&peer_id, addr);
                         }
                     },
                     SwarmEvent::Behaviour(AequitasBehaviourEvent::Gossipsub(gossipsub::Event::Message {
@@ -143,6 +174,19 @@ impl Node {
                                 let _ = self.event_tx.send(NetworkEvent::NewBlock(block)).await;
                             }
                         }
+                    },
+                    SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
+                        log::info!("🤝 P2P: Connection established with {}", peer_id);
+                        let mut state = self.state.write().await;
+                        state.connected_peers.push(PeerInfoSimple {
+                            id: peer_id.to_string(),
+                            addr: Some(endpoint.get_remote_address().to_string()),
+                        });
+                    },
+                    SwarmEvent::ConnectionClosed { peer_id, .. } => {
+                        log::info!("🚪 P2P: Connection closed with {}", peer_id);
+                        let mut state = self.state.write().await;
+                        state.connected_peers.retain(|p| p.id != peer_id.to_string());
                     },
                     _ => {}
                 }

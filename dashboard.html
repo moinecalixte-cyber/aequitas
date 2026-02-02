@@ -280,6 +280,26 @@
                 </table>
             </div>
         </div>
+
+        <div class="wallet-section" style="margin-top: 30px;">
+            <div class="section-header">
+                <h2>Network Nodes</h2>
+            </div>
+            <div class="table-container">
+                <table id="peers-table">
+                    <thead>
+                        <tr>
+                            <th>NODE PEER ID</th>
+                            <th>ENDPOINT</th>
+                            <th>STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="peers-body">
+                        <!-- Peers will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -297,7 +317,7 @@
 
                 document.getElementById('height-val').textContent = data.height;
                 document.getElementById('diff-val').textContent = `DIFFICULTY: ${data.difficulty}`;
-                document.getElementById('peers-val').textContent = data.peers || '1 (Local)';
+                document.getElementById('peers-val').textContent = data.peers;
 
                 return data;
             } catch (error) {
@@ -305,6 +325,33 @@
                 document.getElementById('node-status').innerHTML = '<div class="status-dot" style="background: #ff4d4d; box-shadow: 0 0 10px #ff4d4d;"></div> NODE OFFLINE';
                 document.getElementById('node-status').style.color = '#ff4d4d';
                 document.getElementById('node-status').style.background = 'rgba(255, 77, 77, 0.1)';
+            }
+        }
+
+        async function fetchPeers() {
+            const body = document.getElementById('peers-body');
+            try {
+                const response = await fetch(`${NODE_URL}/peers`);
+                const peers = await response.json();
+                body.innerHTML = '';
+
+                if (peers.length === 0) {
+                    body.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-secondary); padding: 20px;">Searching for peers in decentralized network...</td></tr>';
+                    return;
+                }
+
+                peers.forEach(peer => {
+                    const row = `
+                        <tr>
+                            <td class="address-cell">${peer.id}</td>
+                            <td style="color: var(--text-secondary)">${peer.addr || 'Unknown'}</td>
+                            <td style="color: var(--success); font-weight: 600;">ACTIVE</td>
+                        </tr>
+                    `;
+                    body.innerHTML += row;
+                });
+            } catch (error) {
+                console.error('Peers error:', error);
             }
         }
 
@@ -342,10 +389,13 @@
         async function refreshData() {
             const bar = document.getElementById('loader-bar');
             bar.style.width = '0%';
-            setTimeout(() => bar.style.width = '30%', 100);
+            setTimeout(() => bar.style.width = '20%', 100);
 
             await fetchNodeInfo();
-            bar.style.width = '60%';
+            bar.style.width = '40%';
+
+            await fetchPeers();
+            bar.style.width = '70%';
 
             await fetchBalances();
             bar.style.width = '100%';
