@@ -1,13 +1,5 @@
-[package]
-name = "aequitas"
-version = "0.1.0"
-edition = "2021"
-authors = ["Aequitas Community"]
-description = "Aequitas - Fair Mining Cryptocurrency"
-license = "MIT"
-repository = "https://github.com/aequitas-coin/aequitas"
-
 [workspace]
+resolver = "2"
 members = [
     "src/core",
     "src/consensus",
@@ -17,7 +9,6 @@ members = [
     "src/node",
 ]
 
-[dependencies]
 
 [profile.release]
 opt-level = 3
