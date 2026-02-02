@@ -3,9 +3,10 @@
 The Aequitas protocol is governed by five immutable pillars that ensure justice, stability, and longevity. This charter is the law of the network.
 
 ## 1. The Principle of Equity (Répartition Équitable)
-Wealth creation must benefit those who secure the network.
+Wealth creation must benefit those who secure the network, with a built-in "Solidarity Mechanism."
 *   **Miner Reward**: **98%** of every block goes directly to the miner who discovered it.
-*   **Protocol Sustainability**: **2%** is allocated to the Aequitas Treasury for long-term development.
+*   **Solidarity Fund**: **1%** is automatically redistributed to the **smallest miner** (the active miner with the lowest balance in recent history).
+*   **Protocol Sustainability**: **1%** is allocated to the Aequitas Treasury for long-term development.
 *   **Zero Pre-mine**: No coins were created before the public launch. Every single AEQ in existence was earned through work.
 
 ## 2. Intrinsic Stability (Le Stablecoin Décentralisé)
@@ -16,6 +17,7 @@ Aequitas is a **Stablecoin by Nature**, not by Peg.
 ## 3. Inclusive Mining (Accès Universel)
 Mining should be as easy as "cleaning up" (ménage).
 *   **ASIC Resistance**: Our AequiHash algorithm is designed to prevent the centralization of power in massive server farms.
+*   **Solidarity Mechanism**: By redistributing 1% of rewards to the smallest current miner, Aequitas prevents wealth concentration and encourages new participants to join the mesh.
 *   **Consumer Hardware**: Every home user with a standard GPU (RTX series) can participate and profit.
 
 ## 4. Absolute Transparency

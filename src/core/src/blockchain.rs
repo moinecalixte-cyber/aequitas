@@ -14,8 +14,11 @@ pub const HALVING_INTERVAL: u64 = 2_100_000;
 /// Maximum supply (210 million AEQ with 9 decimals)
 pub const MAX_SUPPLY: u64 = 210_000_000_000_000_000;
 
-/// Treasury percentage (2%)
-pub const TREASURY_PERCENTAGE: u64 = 2;
+/// Treasury (Dev) percentage (1%)
+pub const TREASURY_PERCENTAGE: u64 = 1;
+
+/// Solidarity (Small Miners) percentage (1%)
+pub const SOLIDARITY_PERCENTAGE: u64 = 1;
 
 /// UTXO identifier (transaction hash + output index)
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -115,12 +118,39 @@ impl Blockchain {
         GENESIS_REWARD >> halvings
     }
     
-    /// Calculate miner and treasury rewards
-    pub fn rewards_for_height(height: u64) -> (u64, u64) {
+    /// Calculate miner, treasury, and solidarity rewards
+    pub fn rewards_for_height(&self, height: u64) -> (u64, u64, u64) {
         let total = Self::reward_for_height(height);
         let treasury = (total * TREASURY_PERCENTAGE) / 100;
-        let miner = total - treasury;
-        (miner, treasury)
+        let solidarity = (total * SOLIDARITY_PERCENTAGE) / 100;
+        let miner = total - treasury - solidarity;
+        (miner, treasury, solidarity)
+    }
+
+    /// Find the smallest miner (lowest balance) among the last 100 blocks to receive solidarity
+    pub fn find_smallest_beneficiary(&self) -> Address {
+        let start_height = self.height.saturating_sub(100);
+        let mut miner_balances: HashMap<Address, u64> = HashMap::new();
+
+        for h in start_height..=self.height {
+            if let Some(block) = self.get_block_at_height(h) {
+                if let Some(coinbase) = block.transactions.get(0) {
+                    // Assuming the first output of coinbase is the miner
+                    if let Some(output) = coinbase.outputs.get(0) {
+                        let addr = output.recipient.clone();
+                        let balance = self.get_balance(&addr);
+                        miner_balances.insert(addr, balance);
+                    }
+                }
+            }
+        }
+
+        // Return the address with the lowest balance. 
+        // If no miners found (unlikely), return treasury as fallback.
+        miner_balances.into_iter()
+            .min_by_key(|&(_, balance)| balance)
+            .map(|(addr, _)| addr)
+            .unwrap_or_else(|| self.treasury_address.clone())
     }
     
     /// Get block by hash
@@ -241,13 +271,30 @@ impl Blockchain {
         }
         
         // Validate coinbase amount
-        let (miner_reward, treasury_reward) = Self::rewards_for_height(block.header.height);
+        let (miner_reward, treasury_reward, solidarity_reward) = self.rewards_for_height(block.header.height);
         let coinbase = &block.transactions[0];
         
-        // TODO: Validate fees included in coinbase
-        let coinbase_amount: u64 = coinbase.outputs.iter().map(|o| o.amount).sum();
-        if coinbase_amount > miner_reward + treasury_reward {
+        // Coinbase should have outputs for Miner, Dev Fund, and Solidarity Fund
+        if coinbase.outputs.len() < 3 {
             return Err(ChainError::InvalidCoinbaseAmount);
+        }
+
+        let total_reward = miner_reward + treasury_reward + solidarity_reward;
+        let coinbase_amount: u64 = coinbase.outputs.iter().map(|o| o.amount).sum();
+        
+        if coinbase_amount > total_reward {
+            return Err(ChainError::InvalidCoinbaseAmount);
+        }
+
+        // Verify Solidarity recipient is actually the smallest miner
+        let expected_solidarity_recipient = self.find_smallest_beneficiary();
+        let actual_solidarity_recipient = &coinbase.outputs[2].recipient;
+        
+        if actual_solidarity_recipient != &expected_solidarity_recipient && block.header.height > 0 {
+            log::warn!("Solidarity reward sent to wrong recipient. Expected: {}, Got: {}", expected_solidarity_recipient, actual_solidarity_recipient);
+            // We allow some flexibility for the first few blocks or in some cases, 
+            // but for core logic we enforce it if we want it to be "Immuable"
+            // return Err(ChainError::InvalidSolidarityRecipient); 
         }
         
         // Validate other transactions

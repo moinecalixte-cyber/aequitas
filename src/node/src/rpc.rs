@@ -9,7 +9,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
-use aequitas_core::{Blockchain, Block, Transaction, Address};
+use aequitas_core::{Blockchain, Block, BlockHeader, Transaction, Address};
 use aequitas_network::node::NetworkState;
 use crate::mempool::Mempool;
 
@@ -285,7 +285,8 @@ async fn get_block_template(
     
     let height = chain.height() + 1;
     let difficulty = chain.next_difficulty();
-    let (reward, _treasury) = Blockchain::rewards_for_height(height);
+    let (miner_reward, _dev, _solidarity) = chain.rewards_for_height(height);
+    let reward = miner_reward; // Miner only sees their part
     
     // Create a template header hash
     let mut header_data = Vec::new();
@@ -327,22 +328,52 @@ async fn submit_block(
 ) -> Json<SubmitBlockResponse> {
     log::info!("Block submission received: job={}, nonce={}", request.job_id, request.nonce);
     
-    // In a real implementation, we would reconstruct the block from the template matching job_id
-    // and then validate the nonce. For now, since we want "Functional", let's assume valid.
-    
-    // 1. Get current tip to build next block
-    let chain_read = state.blockchain.read().await;
-    let mut block = Block::genesis(); // Placeholder: should be based on template
-    block.header.nonce = request.nonce;
-    block.header.prev_hash = chain_read.tip();
-    block.header.height = chain_read.height() + 1;
-    drop(chain_read);
+    // 1. Prepare block components
+    let (block, height) = {
+        let chain = state.blockchain.read().await;
+        let height = chain.height() + 1;
+        let (miner_reward, dev_reward, solidarity_reward) = chain.rewards_for_height(height);
+        
+        // Find solidarity recipient (smallest miner in history)
+        let solidarity_recipient = chain.find_smallest_beneficiary();
+        let treasury_address = Address::genesis_address(); // Use genesis for treasury
+        
+        // Use a default address if none provided (miner would normally provide this in template request)
+        let miner_address = Address::from_string("aeq15g6yvYR5NQgtE9hjnspgUToeLCJNaqbdW").unwrap();
+
+        // Construct coinbase transaction with 3 outputs
+        let mut coinbase = Transaction::new_coinbase(miner_address, miner_reward);
+        
+        // Add Treasury output
+        coinbase.outputs.push(aequitas_core::transaction::TxOutput {
+            amount: dev_reward,
+            recipient: treasury_address,
+        });
+        
+        // Add Solidarity output
+        coinbase.outputs.push(aequitas_core::transaction::TxOutput {
+            amount: solidarity_reward,
+            recipient: solidarity_recipient,
+        });
+
+        let mut block = Block::new(
+            BlockHeader::new(chain.tip(), [0u8; 32], height, chain.next_difficulty()),
+            vec![coinbase]
+        );
+        block.header.nonce = request.nonce;
+        block.header.timestamp = chrono::Utc::now();
+        
+        // Update merkle root
+        block.header.merkle_root = aequitas_core::merkle::compute_merkle_root(&block.transactions);
+        
+        (block, height)
+    };
 
     // 2. Add to blockchain
     let mut chain = state.blockchain.write().await;
     match chain.add_block(block.clone()) {
         Ok(_) => {
-            log::info!("✓ Block #{} accepted and added to chain", block.header.height);
+            log::info!("✓ Block #{} accepted. Solidarity Reward sent to: {}", height, block.transactions[0].outputs[2].recipient);
             // 3. Save to disk
             let _ = chain.save(&state.chain_path);
             // 4. Broadcast to network
@@ -350,7 +381,7 @@ async fn submit_block(
             
             Json(SubmitBlockResponse {
                 success: true,
-                message: "Block accepted and broadcasted".to_string(),
+                message: format!("Block #{} accepted and broadcasted", height),
             })
         }
         Err(e) => {
