@@ -1,12 +1,7 @@
 # Aequitas Node Configuration
-
-[node]
 network = "testnet"
 data_dir = "data"
 rpc_addr = "127.0.0.1:8080"
 p2p_addr = "0.0.0.0:30303"
 rpc_enabled = true
-
-[logging]
-level = "info"
-file = "node.log"
+log_level = "info"

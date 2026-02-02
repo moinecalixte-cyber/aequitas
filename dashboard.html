@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,7 +29,7 @@
             background-color: var(--bg-color);
             color: var(--text-primary);
             overflow-x: hidden;
-            background-image: 
+            background-image:
                 radial-gradient(circle at 10% 20%, rgba(0, 210, 255, 0.05) 0%, transparent 40%),
                 radial-gradient(circle at 90% 80%, rgba(58, 123, 213, 0.05) 0%, transparent 40%);
             min-height: 100vh;
@@ -79,9 +80,17 @@
         }
 
         @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.4; }
-            100% { opacity: 1; }
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+
+            100% {
+                opacity: 1;
+            }
         }
 
         .grid {
@@ -125,7 +134,9 @@
             font-weight: 600;
         }
 
-        .card-subtitle.neutral { color: var(--text-secondary); }
+        .card-subtitle.neutral {
+            color: var(--text-secondary);
+        }
 
         /* Wallet Section */
         .wallet-section {
@@ -214,11 +225,13 @@
             background: var(--accent-gradient);
             transition: width 0.3s ease;
         }
-
     </style>
 </head>
+
 <body>
-    <div id="loader"><div id="loader-bar"></div></div>
+    <div id="loader">
+        <div id="loader-bar"></div>
+    </div>
 
     <div class="container">
         <header>
@@ -275,18 +288,18 @@
 
         // For demo, we use the address you generated
         const MY_ADDRESSES = [
-            'aeq15g6yvYR5NQgtE9hjnspgU7wYhS3F9Psqd6X8p'
+            'aeq15g6yvYR5NQgtE9hjnspgUToeLCJNaqbdW'
         ];
 
         async function fetchNodeInfo() {
             try {
                 const response = await fetch(`${NODE_URL}/info`);
                 const data = await response.json();
-                
+
                 document.getElementById('height-val').textContent = data.height;
                 document.getElementById('diff-val').textContent = `DIFFICULTY: ${data.difficulty}`;
                 document.getElementById('peers-val').textContent = data.peers || '1 (Local)';
-                
+
                 return data;
             } catch (error) {
                 console.error('Node error:', error);
@@ -305,7 +318,7 @@
                 try {
                     const response = await fetch(`${NODE_URL}/balance/${addr}`);
                     const data = await response.json();
-                    
+
                     const balance = data.balance / 1000000000;
                     const valueEur = balance * AEQ_PRICE_EUR;
                     totalAEQ += balance;
@@ -331,13 +344,13 @@
             const bar = document.getElementById('loader-bar');
             bar.style.width = '0%';
             setTimeout(() => bar.style.width = '30%', 100);
-            
+
             await fetchNodeInfo();
             bar.style.width = '60%';
-            
+
             await fetchBalances();
             bar.style.width = '100%';
-            
+
             setTimeout(() => bar.style.width = '0%', 500);
         }
 
@@ -347,4 +360,5 @@
 
     </script>
 </body>
+
 </html>
