@@ -84,12 +84,13 @@ enum Commands {
         address: Option<String>,
         
         /// Node RPC URL
-        #[arg(short, long, default_value = "http://127.0.0.1:23421")]
+        #[arg(short, long, default_value = "http://127.0.0.1:8080")]
         node: String,
     },
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     
     match cli.command {
@@ -112,7 +113,7 @@ fn main() -> anyhow::Result<()> {
             cmd_import(&cli.wallet, &key, &password, label)?;
         }
         Commands::Balance { address, node } => {
-            cmd_balance(&cli.wallet, address, &node)?;
+            cmd_balance(&cli.wallet, address, &node).await?;
         }
     }
     
@@ -242,24 +243,50 @@ fn cmd_import(path: &PathBuf, key: &str, password: &str, label: Option<String>) 
     Ok(())
 }
 
-fn cmd_balance(path: &PathBuf, address: Option<String>, node: &str) -> anyhow::Result<()> {
+async fn cmd_balance(path: &PathBuf, address: Option<String>, node: &str) -> anyhow::Result<()> {
     println!("\n💰 Checking balance...\n");
-    println!("  Node: {}", node);
+    println!("  Node: {}\n", node);
     
-    // TODO: Implement RPC client to query node
-    println!("\n⚠️  Balance checking requires a running node.");
-    println!("   Start the node with: aequitas-node\n");
-    
+    let client = reqwest::Client::new();
+    let price_eur = 0.12; // Mock price for demonstration
+
+    let mut addresses = Vec::new();
     if let Some(addr) = address {
-        println!("  Address: {}", addr);
-        println!("  Balance: (node connection required)\n");
+        addresses.push(addr);
     } else if path.exists() {
         let wallet = Wallet::load(path)?;
         for addr in wallet.addresses() {
-            println!("  {} : (pending)", addr);
+            addresses.push(addr);
         }
-        println!();
+    } else {
+        anyhow::bail!("No address specified and no wallet.json found.");
     }
+
+    println!("  {:<45} | {:<20} | {:<15}", "Address", "Balance (AEQ)", "Value (EUR)");
+    println!("  {}", "─".repeat(85));
+
+    for addr in addresses {
+        let url = format!("{}/balance/{}", node, addr);
+        match client.get(&url).send().await {
+            Ok(resp) => {
+                if resp.status().is_success() {
+                    let data: serde_json::Value = resp.json().await?;
+                    let balance_raw = data["balance"].as_u64().unwrap_or(0);
+                    let balance_aeq = balance_raw as f64 / 1_000_000_000.0;
+                    let value_eur = balance_aeq * price_eur;
+                    
+                    println!("  {:<45} | {:>20.9} | {:>12.2} €", addr, balance_aeq, value_eur);
+                } else {
+                    println!("  {:<45} | {:>20} | {:>15}", addr, "ERROR", "N/A");
+                }
+            }
+            Err(_) => {
+                println!("  {:<45} | {:>20} | {:>15}", addr, "OFFLINE", "N/A");
+            }
+        }
+    }
+    
+    println!("\n  (Current estimated price: {:.2} €/AEQ)\n", price_eur);
     
     Ok(())
 }
