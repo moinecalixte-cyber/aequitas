@@ -18,8 +18,15 @@ pub struct RpcState {
     pub mempool: Arc<RwLock<Mempool>>,
 }
 
+use tower_http::cors::{CorsLayer, Any};
+
 /// Create RPC router
 pub fn create_router(state: Arc<RpcState>) -> Router {
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     Router::new()
         .route("/", get(index))
         .route("/info", get(get_info))
@@ -31,6 +38,7 @@ pub fn create_router(state: Arc<RpcState>) -> Router {
         .route("/tx/send", post(send_transaction))
         .route("/getblocktemplate", post(get_block_template))
         .route("/submitblock", post(submit_block))
+        .layer(cors)
         .with_state(state)
 }
 
