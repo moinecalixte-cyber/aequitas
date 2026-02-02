@@ -318,9 +318,6 @@ impl MiningWorker {
     /// Submit a new job
     pub fn submit_job(&self, job: MiningJob) -> anyhow::Result<()> {
         if let Some(tx) = &self.job_tx {
-            // Clear old jobs and send new one
-            while tx.try_recv().is_ok() {}
-            
             // Send to all workers
             for _ in 0..self.cpu_workers.len() {
                 tx.send(job.clone())?;

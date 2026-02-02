@@ -99,7 +99,7 @@ impl TransactionBuilder {
         signing_key: &SigningKey,
         chain: &Blockchain,
     ) -> anyhow::Result<Transaction> {
-        let from = self.from.ok_or_else(|| anyhow::anyhow!("Sender address not set"))?;
+        let from = self.from.clone().ok_or_else(|| anyhow::anyhow!("Sender address not set"))?;
         
         if self.outputs.is_empty() {
             anyhow::bail!("No recipients specified");
@@ -176,7 +176,7 @@ impl TransactionBuilder {
         self,
         chain: &Blockchain,
     ) -> anyhow::Result<UnsignedTransaction> {
-        let from = self.from.ok_or_else(|| anyhow::anyhow!("Sender address not set"))?;
+        let from = self.from.clone().ok_or_else(|| anyhow::anyhow!("Sender address not set"))?;
         
         if self.outputs.is_empty() {
             anyhow::bail!("No recipients specified");
