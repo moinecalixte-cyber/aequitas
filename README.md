@@ -22,9 +22,10 @@
 
 **Aequitas** (Latin for "Equity") is a decentralized blockchain project born from a simple observation: modern mining is dominated by massive centralized ASIC farms. We are taking the power back and giving it to individuals.
 
-### 🚀 Key Pillars:
-- ⚖️ **Fair Launch**: 0% Pre-mine. 0% Team allocation. 100% of the supply is earned through work.
-- ⚡ **GPU Optimized**: Our AequiHash algorithm is specifically designed to run on consumer hardware (NVIDIA RTX 30/40 series).
+### 🚀 The Aequitas Pillars:
+- ⚖️ **Immutable Equity**: A strict **98% Miner / 2% Treasury** revenue split. Professional fairness from Day 1.
+- 💎 **Intrinsic Stablecoin**: Aequitas is "Inflation-Proof" by design. Unlike fiat-pegged coins, it is not indexed to currencies that lose value. **It is an absolute store of value.**
+- 🧹 **Zero-Barrier Node**: Designed to be as easy to maintain as "cleaning your desk" (Le ménage simplifié). One-click monitoring via our real-time dashboard.
 - ⚙️ **libp2p P2P Stack**: Built on the world's most advanced peer-to-peer networking stack for ultimate resilience.
 - 🌍 **Global DHT Discovery**: Automatic peer discovery via Kademlia DHT—no central bootstrap servers required.
 
