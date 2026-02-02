@@ -1,0 +1,34 @@
+# Aequitas build artifacts
+/target/
+/bin/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Config files with secrets
+wallet.json
+miner.toml
+*.key
+*.pem
+
+# Logs
+*.log
+logs/
+
+# DAG files (very large)
+*.dag
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Rust
+Cargo.lock
+**/*.rs.bk
+
+# Temp
+*.tmp
+*.temp

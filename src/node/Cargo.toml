@@ -1,0 +1,33 @@
+[package]
+name = "aequitas-node"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "aequitas-node"
+path = "src/main.rs"
+
+[lib]
+name = "aequitas_node"
+path = "src/lib.rs"
+
+[dependencies]
+aequitas-core = { path = "../core" }
+aequitas-consensus = { path = "../consensus" }
+tokio = { version = "1.35", features = ["full", "signal"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.4", features = ["derive"] }
+log = "0.4"
+env_logger = "0.10"
+thiserror = "1.0"
+anyhow = "1.0"
+hex = "0.4"
+chrono = "0.4"
+toml = "0.8"
+axum = "0.7"
+tower-http = { version = "0.5", features = ["cors"] }
+bincode = "1.3"
+reqwest = { version = "0.11", features = ["json"] }
+blake3 = "1.5"
+dirs = "5.0"

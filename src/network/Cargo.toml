@@ -1,0 +1,18 @@
+[package]
+name = "aequitas-network"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aequitas-core = { path = "../core" }
+aequitas-consensus = { path = "../consensus" }
+tokio = { version = "1.35", features = ["full"] }
+libp2p = { version = "0.53", features = ["tcp", "noise", "yamux", "gossipsub", "mdns", "tokio", "macros"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "1.3"
+log = "0.4"
+thiserror = "1.0"
+anyhow = "1.0"
+futures = "0.3"
+async-trait = "0.1"

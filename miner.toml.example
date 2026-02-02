@@ -1,0 +1,48 @@
+# Aequitas Miner Configuration
+# ================================
+# Éditez ce fichier avec vos paramètres
+
+# Votre adresse Aequitas (OBLIGATOIRE)
+# Générez-en une avec: aequitas-wallet new
+address = "aeq1VotreAdresseIci"
+
+# URL du nœud pour solo mining
+node_url = "http://127.0.0.1:23421"
+
+# Nombre de threads CPU (0 = désactiver CPU mining)
+cpu_threads = 4
+
+# Activer le minage GPU
+gpu_enabled = true
+
+# GPUs à utiliser (vide = tous les GPUs détectés)
+# Exemple: [0, 1] pour les deux premiers GPUs
+gpu_devices = []
+
+# Intensité GPU (1-100)
+# Recommandations:
+#   - RTX 3060: 70-80
+#   - RTX 3070: 75-85
+#   - RTX 3080: 80-90
+gpu_intensity = 75
+
+# Nom du worker (optionnel, pour stats pool)
+worker_name = "my-miner"
+
+# ====== Pool Mining ======
+# Activez stratum_enabled pour miner en pool
+stratum_enabled = false
+
+# URL du pool (décommentez pour utiliser)
+# stratum_url = "stratum+tcp://pool.aequitas.network:3333"
+
+# Mot de passe pool (généralement "x")
+# stratum_password = "x"
+
+# ====== Avancé ======
+
+# Niveau de log: trace, debug, info, warn, error
+log_level = "info"
+
+# Intervalle des stats (secondes)
+stats_interval = 10

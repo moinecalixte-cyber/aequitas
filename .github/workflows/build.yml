@@ -1,0 +1,93 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: aequitas-linux-x64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: aequitas-windows-x64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: aequitas-macos-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-action@stable
+      with:
+        targets: ${{ matrix.target }}
+
+    - name: Build
+      run: cargo build --release --target ${{ matrix.target }}
+
+    - name: Create artifact directory
+      run: mkdir -p artifacts
+
+    - name: Copy binaries (Linux/Mac)
+      if: runner.os != 'Windows'
+      run: |
+        cp target/${{ matrix.target }}/release/aequitas-node artifacts/
+        cp target/${{ matrix.target }}/release/aequitas-wallet artifacts/
+        cp target/${{ matrix.target }}/release/aequitas-miner artifacts/
+        cp miner.toml.example artifacts/
+        cp README.md artifacts/
+        cp LICENSE artifacts/
+
+    - name: Copy binaries (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        Copy-Item target/${{ matrix.target }}/release/aequitas-node.exe artifacts/
+        Copy-Item target/${{ matrix.target }}/release/aequitas-wallet.exe artifacts/
+        Copy-Item target/${{ matrix.target }}/release/aequitas-miner.exe artifacts/
+        Copy-Item miner.toml.example artifacts/
+        Copy-Item README.md artifacts/
+        Copy-Item LICENSE artifacts/
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact }}
+        path: artifacts/
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Create archives
+      run: |
+        cd aequitas-linux-x64 && tar czf ../aequitas-linux-x64.tar.gz * && cd ..
+        cd aequitas-macos-x64 && tar czf ../aequitas-macos-x64.tar.gz * && cd ..
+        cd aequitas-windows-x64 && zip -r ../aequitas-windows-x64.zip * && cd ..
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          aequitas-linux-x64.tar.gz
+          aequitas-macos-x64.tar.gz
+          aequitas-windows-x64.zip
+        draft: false
+        prerelease: false
