@@ -129,6 +129,7 @@ impl Node {
                 event = swarm.select_next_some() => match event {
                     SwarmEvent::Behaviour(AequitasBehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
                         for (peer_id, addr) in list {
+                            log::info!("🌐 P2P: Discovered new peer {} at {}", peer_id, addr);
                             swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
                             let _ = swarm.dial(addr);
                         }
