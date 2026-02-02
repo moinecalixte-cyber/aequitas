@@ -14,6 +14,7 @@ path = "src/lib.rs"
 [dependencies]
 aequitas-core = { path = "../core" }
 aequitas-consensus = { path = "../consensus" }
+aequitas-network = { path = "../network" }
 tokio = { version = "1.35", features = ["full", "signal"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

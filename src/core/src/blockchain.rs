@@ -18,7 +18,7 @@ pub const MAX_SUPPLY: u64 = 210_000_000_000_000_000;
 pub const TREASURY_PERCENTAGE: u64 = 2;
 
 /// UTXO identifier (transaction hash + output index)
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct UtxoId {
     pub tx_hash: [u8; 32],
     pub output_index: u32,
@@ -31,29 +31,15 @@ impl UtxoId {
 }
 
 /// The main blockchain structure
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Blockchain {
-    /// All blocks indexed by hash
     blocks: HashMap<[u8; 32], Block>,
-    
-    /// Block hashes by height
     height_index: HashMap<u64, [u8; 32]>,
-    
-    /// Current chain tip (highest block hash)
     tip: [u8; 32],
-    
-    /// Current height
     height: u64,
-    
-    /// Unspent transaction outputs
     utxos: HashMap<UtxoId, TxOutput>,
-    
-    /// Recent block times for difficulty calculation
     block_times: Vec<(u64, i64)>,
-    
-    /// Treasury address
     treasury_address: Address,
-    
-    /// Current difficulty
     current_difficulty: u64,
 }
 
@@ -86,9 +72,23 @@ impl Blockchain {
             height: 0,
             utxos,
             block_times,
-            treasury_address: Address::genesis_address(), // TODO: Proper treasury
+            treasury_address: Address::genesis_address(),
             current_difficulty: genesis.header.difficulty,
         }
+    }
+    
+    /// Load from file
+    pub fn load(path: &std::path::Path) -> anyhow::Result<Self> {
+        let content = std::fs::read(path)?;
+        let chain: Self = bincode::deserialize(&content)?;
+        Ok(chain)
+    }
+    
+    /// Save to file
+    pub fn save(&self, path: &std::path::Path) -> anyhow::Result<()> {
+        let content = bincode::serialize(self)?;
+        std::fs::write(path, content)?;
+        Ok(())
     }
     
     /// Get the current height

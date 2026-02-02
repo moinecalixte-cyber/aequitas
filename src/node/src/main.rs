@@ -191,20 +191,32 @@ async fn run_node(cli: &Cli) -> anyhow::Result<()> {
     
     // Initialize blockchain
     log::info!("Initializing blockchain...");
-    let blockchain = Arc::new(RwLock::new(Blockchain::new()));
+    let chain_path = config.data_dir.join("blockchain.dat");
+    let blockchain = if chain_path.exists() {
+        log::info!("Loading blockchain from {}...", chain_path.display());
+        Arc::new(RwLock::new(Blockchain::load(&chain_path)?))
+    } else {
+        log::info!("Creating new blockchain...");
+        Arc::new(RwLock::new(Blockchain::new()))
+    };
     let mempool = Arc::new(RwLock::new(Mempool::new()));
     
     {
         let chain = blockchain.read().await;
-        log::info!("Genesis block: {}", hex::encode(chain.tip()));
-        log::info!("Chain height:  {}", chain.height());
+        log::info!("✓ Chain height:  {}", chain.height());
+        log::info!("✓ Current tip:   {}", hex::encode(chain.tip()));
     }
     
+    // Create broadcast channel for RPC -> P2P propagation
+    let (p2p_broadcast_tx, mut p2p_broadcast_rx) = tokio::sync::mpsc::channel(100);
+
     // Start RPC server
     if config.rpc_enabled {
         let rpc_state = Arc::new(RpcState {
             blockchain: blockchain.clone(),
             mempool: mempool.clone(),
+            broadcast_tx: p2p_broadcast_tx.clone(),
+            chain_path: chain_path.clone(),
         });
         
         let router = create_router(rpc_state);
@@ -232,7 +244,7 @@ async fn run_node(cli: &Cli) -> anyhow::Result<()> {
     let mempool_p2p = mempool.clone();
     
     tokio::spawn(async move {
-        if let Err(e) = p2p_node.start().await {
+        if let Err(e) = p2p_node.start(p2p_broadcast_rx).await {
             log::error!("P2P network error: {}", e);
         }
     });
@@ -240,6 +252,7 @@ async fn run_node(cli: &Cli) -> anyhow::Result<()> {
     // Process network events
     let blockchain_ev = blockchain.clone();
     let mempool_ev = mempool.clone();
+    let chain_path_ev = chain_path.clone();
     tokio::spawn(async move {
         while let Some(event) = net_events.recv().await {
             match event {
@@ -248,12 +261,14 @@ async fn run_node(cli: &Cli) -> anyhow::Result<()> {
                     let mut chain = blockchain_ev.write().await;
                     if let Err(e) = chain.add_block(block) {
                         log::warn!("Invalid block received: {}", e);
+                    } else {
+                        let _ = chain.save(&chain_path_ev);
                     }
                 }
                 aequitas_network::node::NetworkEvent::NewTransaction(tx) => {
                     log::info!("Received transaction {} via P2P", hex::encode(tx.hash()));
                     let mut pool = mempool_ev.write().await;
-                    pool.add_transaction(tx);
+                    let _ = pool.add(tx, 0);
                 }
                 _ => {}
             }
