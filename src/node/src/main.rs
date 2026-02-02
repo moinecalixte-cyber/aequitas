@@ -197,7 +197,9 @@ async fn run_node(cli: &Cli) -> anyhow::Result<()> {
         Arc::new(RwLock::new(Blockchain::load(&chain_path)?))
     } else {
         log::info!("Creating new blockchain...");
-        Arc::new(RwLock::new(Blockchain::new()))
+        let chain = Blockchain::new();
+        let _ = chain.save(&chain_path);
+        Arc::new(RwLock::new(chain))
     };
     let mempool = Arc::new(RwLock::new(Mempool::new()));
     
