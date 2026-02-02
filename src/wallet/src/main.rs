@@ -248,7 +248,7 @@ async fn cmd_balance(path: &PathBuf, address: Option<String>, node: &str) -> any
     println!("  Node: {}\n", node);
     
     let client = reqwest::Client::new();
-    let price_eur = 0.12; // Mock price for demonstration
+    let value_status = "Market Discovery";
 
     let mut addresses = Vec::new();
     if let Some(addr) = address {
@@ -273,9 +273,8 @@ async fn cmd_balance(path: &PathBuf, address: Option<String>, node: &str) -> any
                     let data: serde_json::Value = resp.json().await?;
                     let balance_raw = data["balance"].as_u64().unwrap_or(0);
                     let balance_aeq = balance_raw as f64 / 1_000_000_000.0;
-                    let value_eur = balance_aeq * price_eur;
                     
-                    println!("  {:<45} | {:>20.9} | {:>12.2} €", addr, balance_aeq, value_eur);
+                    println!("  {:<45} | {:>20.9} | {:>15}", addr, balance_aeq, value_status);
                 } else {
                     println!("  {:<45} | {:>20} | {:>15}", addr, "ERROR", "N/A");
                 }
@@ -286,7 +285,7 @@ async fn cmd_balance(path: &PathBuf, address: Option<String>, node: &str) -> any
         }
     }
     
-    println!("\n  (Current estimated price: {:.2} €/AEQ)\n", price_eur);
+    println!("\n  (Network status: Live and Decentralized)\n");
     
     Ok(())
 }

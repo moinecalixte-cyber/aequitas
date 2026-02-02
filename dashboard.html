@@ -284,9 +284,8 @@
 
     <script>
         const NODE_URL = 'http://127.0.0.1:8080';
-        const AEQ_PRICE_EUR = 0.12;
 
-        // For demo, we use the address you generated
+        // For real use, we use the address you generated
         const MY_ADDRESSES = [
             'aeq15g6yvYR5NQgtE9hjnspgUToeLCJNaqbdW'
         ];
@@ -320,14 +319,14 @@
                     const data = await response.json();
 
                     const balance = data.balance / 1000000000;
-                    const valueEur = balance * AEQ_PRICE_EUR;
+                    const valueStatus = "Market Discovery";
                     totalAEQ += balance;
 
                     const row = `
                         <tr>
                             <td class="address-cell">${addr}</td>
                             <td class="balance-cell">${balance.toFixed(4)} AEQ</td>
-                            <td class="value-cell">${valueEur.toFixed(2)} €</td>
+                            <td class="value-cell" style="color: var(--text-secondary)">${valueStatus}</td>
                         </tr>
                     `;
                     body.innerHTML += row;
@@ -337,7 +336,7 @@
             }
 
             document.getElementById('total-balance').textContent = `${totalAEQ.toFixed(2)} AEQ`;
-            document.getElementById('total-value-eur').textContent = `${(totalAEQ * AEQ_PRICE_EUR).toFixed(2)} €`;
+            document.getElementById('total-value-eur').textContent = `LIVE NETWORK`;
         }
 
         async function refreshData() {

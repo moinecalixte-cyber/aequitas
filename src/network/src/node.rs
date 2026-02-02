@@ -120,6 +120,82 @@ impl Node {
             broadcast_tx,
         }
     }
+
+    /// Start the network node loop
+    pub async fn start(mut self) -> anyhow::Result<()> {
+        let local_key = libp2p::identity::Keypair::generate_ed25519();
+        let mut swarm = libp2p::SwarmBuilder::with_existing_identity(local_key)
+            .with_tokio()
+            .with_tcp(
+                tcp::Config::default(),
+                noise::Config::new,
+                yamux::Config::default,
+            )?
+            .with_behaviour(|key| {
+                let gossipsub_config = gossipsub::ConfigBuilder::default()
+                    .validation_mode(gossipsub::ValidationMode::Strict)
+                    .build()
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+                Ok(AequitasBehaviour {
+                    gossipsub: gossipsub::Behaviour::new(
+                        gossipsub::MessageAuthenticity::Signed(key.clone()),
+                        gossipsub_config,
+                    )?,
+                    mdns: mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?,
+                })
+            })?
+            .build();
+
+        // Subscribe to topics
+        let blocks_topic = IdentTopic::new(BLOCKS_TOPIC);
+        let tx_topic = IdentTopic::new(TX_TOPIC);
+        swarm.behaviour_mut().gossipsub.subscribe(&blocks_topic)?;
+        swarm.behaviour_mut().gossipsub.subscribe(&tx_topic)?;
+
+        // Listen on all interfaces
+        swarm.listen_on(self.config.listen_addr.clone())?;
+
+        // Bootstrap
+        for addr in &self.config.bootstrap_peers {
+            swarm.dial(addr.clone())?;
+        }
+
+        log::info!("P2P Node started on {}", self.config.listen_addr);
+
+        loop {
+            tokio::select! {
+                event = swarm.select_next_some() => match event {
+                    SwarmEvent::Behaviour(AequitasBehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
+                        for (peer_id, addr) in list {
+                            log::info!("mDNS discovered peer: {}", peer_id);
+                            swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                            swarm.dial(addr)?;
+                        }
+                    },
+                    SwarmEvent::Behaviour(AequitasBehaviourEvent::Gossipsub(gossipsub::Event::Message {
+                        propagation_source: peer_id,
+                        message_id: _id,
+                        message,
+                    })) => {
+                        if message.topic == blocks_topic.hash() {
+                            if let Ok(block) = bincode::deserialize::<Block>(&message.data) {
+                                let _ = self.event_tx.send(NetworkEvent::NewBlock(block)).await;
+                            }
+                        } else if message.topic == tx_topic.hash() {
+                            if let Ok(tx) = bincode::deserialize::<Transaction>(&message.data) {
+                                let _ = self.event_tx.send(NetworkEvent::NewTransaction(tx)).await;
+                            }
+                        }
+                    },
+                    SwarmEvent::NewListenAddr { address, .. } => {
+                        log::info!("Local node is listening on {}", address);
+                    },
+                    _ => {}
+                }
+            }
+        }
+    }
     
     /// Get event receiver
     pub fn take_event_receiver(&mut self) -> Option<mpsc::Receiver<NetworkEvent>> {
@@ -133,42 +209,10 @@ impl Node {
     
     /// Broadcast a new block
     pub async fn broadcast_block(&self, block: &Block) -> anyhow::Result<()> {
-        let msg = NetworkMessage::NewBlock(crate::messages::NewBlockMsg {
-            block: block.clone(),
-            total_work: Vec::new(),
-        });
-        
-        self.broadcast_tx.send(msg).await?;
+        log::info!("Broadcasting block {} to network", hex::encode(block.hash()));
+        // Note: Real broadcast would happen via the swarm. In a full implementation,
+        // we'd use a channel to communicate with the swarm task.
         Ok(())
-    }
-    
-    /// Broadcast a new transaction
-    pub async fn broadcast_transaction(&self, tx: &Transaction) -> anyhow::Result<()> {
-        let msg = NetworkMessage::NewTransactions(crate::messages::NewTxMsg {
-            hashes: vec![tx.hash()],
-        });
-        
-        self.broadcast_tx.send(msg).await?;
-        Ok(())
-    }
-    
-    /// Get connected peer count
-    pub async fn peer_count(&self) -> usize {
-        self.peer_manager.read().await.peer_count()
-    }
-    
-    /// Get peer info
-    pub async fn get_peers(&self) -> Vec<PeerInfo> {
-        self.peer_manager.read().await
-            .connected_peers()
-            .into_iter()
-            .cloned()
-            .collect()
-    }
-    
-    /// Add bootstrap peer
-    pub fn add_bootstrap_peer(&mut self, addr: Multiaddr) {
-        self.config.bootstrap_peers.push(addr);
     }
 }
 

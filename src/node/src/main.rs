@@ -217,11 +217,51 @@ async fn run_node(cli: &Cli) -> anyhow::Result<()> {
         });
     }
     
-    // TODO: Start P2P network
-    log::info!("P2P network starting... (simplified for testnet)");
+    // Start P2P network
+    let p2p_config = aequitas_network::node::NodeConfig {
+        listen_addr: config.p2p_addr.parse().unwrap_or_else(|_| "/ip4/0.0.0.0/tcp/23420".parse().unwrap()),
+        bootstrap_peers: Vec::new(),
+        testnet: config.network == "testnet",
+        enable_mdns: true,
+    };
     
+    let mut p2p_node = aequitas_network::Node::new(p2p_config);
+    let mut net_events = p2p_node.take_event_receiver().unwrap();
+    
+    let blockchain_p2p = blockchain.clone();
+    let mempool_p2p = mempool.clone();
+    
+    tokio::spawn(async move {
+        if let Err(e) = p2p_node.start().await {
+            log::error!("P2P network error: {}", e);
+        }
+    });
+    
+    // Process network events
+    let blockchain_ev = blockchain.clone();
+    let mempool_ev = mempool.clone();
+    tokio::spawn(async move {
+        while let Some(event) = net_events.recv().await {
+            match event {
+                aequitas_network::node::NetworkEvent::NewBlock(block) => {
+                    log::info!("Received block {} via P2P", hex::encode(block.hash()));
+                    let mut chain = blockchain_ev.write().await;
+                    if let Err(e) = chain.add_block(block) {
+                        log::warn!("Invalid block received: {}", e);
+                    }
+                }
+                aequitas_network::node::NetworkEvent::NewTransaction(tx) => {
+                    log::info!("Received transaction {} via P2P", hex::encode(tx.hash()));
+                    let mut pool = mempool_ev.write().await;
+                    pool.add_transaction(tx);
+                }
+                _ => {}
+            }
+        }
+    });
+
     // Main loop
-    log::info!("Node is running! Press Ctrl+C to stop.");
+    log::info!("Node is running and public! Press Ctrl+C to stop.");
     
     // Wait for shutdown signal
     tokio::signal::ctrl_c().await?;

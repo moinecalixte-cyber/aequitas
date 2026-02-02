@@ -63,7 +63,7 @@ fn default_p2p_addr() -> String {
 }
 
 fn default_rpc_addr() -> String {
-    "127.0.0.1:23421".to_string()
+    "0.0.0.0:23421".to_string()
 }
 
 fn default_rpc_enabled() -> bool {
