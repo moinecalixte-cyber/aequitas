@@ -280,38 +280,77 @@ impl Blockchain {
             self.rewards_for_height(block.header.height);
         let coinbase = &block.transactions[0];
 
-        // Coinbase should have outputs for Miner, Dev Fund, and Solidarity Fund
-        // Allow flexibility for genesis block which may have only 1 output
-        if coinbase.outputs.len() < 3 && block.header.height > 0 {
-            return Err(ChainError::InvalidCoinbaseAmount);
+        // PROTOCOLE DE DISTRIBUTION 98/1/1 - RÈGLE ABSOLUE
+        // Chaque block DOIT contenir: 98% mineur, 1% trésorerie, 1% solidarité
+
+        if block.header.height == 0 {
+            // Genesis block: distribution initiale unique
+            if coinbase.outputs.len() < 1 {
+                return Err(ChainError::InvalidCoinbaseAmount);
+            }
+        } else {
+            // Blocks normaux: distribution 98/1/1 OBLIGATOIRE
+            if coinbase.outputs.len() < 3 {
+                log::error!(
+                    "❌ VIOLATION DISTRIBUTION: Block {} n'a que {} outputs au lieu de 3 (miner/treasury/solidarity)",
+                    block.header.height,
+                    coinbase.outputs.len()
+                );
+                return Err(ChainError::InvalidCoinbaseAmount);
+            }
         }
 
         let total_reward = miner_reward + treasury_reward + solidarity_reward;
         let coinbase_amount: u64 = coinbase.outputs.iter().map(|o| o.amount).sum();
 
         if coinbase_amount > total_reward {
+            log::error!(
+                "💰 INFLATION DÉTECTÉE: Block {} tente de créer {} AEQ au lieu de {} maximum",
+                block.header.height,
+                coinbase_amount / 1_000_000_000,
+                total_reward / 1_000_000_000
+            );
             return Err(ChainError::InvalidCoinbaseAmount);
         }
 
-        // Verify Solidarity recipient is actually the smallest miner
-        // Only enforce for blocks with more than 1 output (not genesis)
+        // VÉRIFICATION ANTI-INFLATION - Stable coin intrinsèque
+        let supply_actuelle = self.circulating_supply();
+        let future_supply = supply_actuelle + coinbase_amount;
+
+        if future_supply > MAX_SUPPLY {
+            log::error!(
+                "🚨 LIMITE SUPPLY DÉPASSÉE: Actuelle {}, Future {}, Maximum {}",
+                supply_actuelle / 1_000_000_000,
+                future_supply / 1_000_000_000,
+                MAX_SUPPLY / 1_000_000_000
+            );
+            return Err(ChainError::MaxSupplyExceeded);
+        }
+
+        // SOLIDARITÉ PROTOCOLAIRE - VÉRIFICATION STRICTE
+        // 1% de la récompense VAUT aux plus petits mineurs - NON NÉGOCIABLE
+        // Ceci est un principe fondamental d'Aequitas
+
         if coinbase.outputs.len() > 2 {
             let expected_solidarity_recipient = self.find_smallest_beneficiary();
             let actual_solidarity_recipient = &coinbase.outputs[2].recipient;
 
-            if actual_solidarity_recipient != &expected_solidarity_recipient
-                && block.header.height > 0
-            {
-                log::warn!(
-                    "Solidarity reward sent to wrong recipient. Expected: {}, Got: {}",
+            // VÉRIFICATION ABSOLUE du protocole de solidarité
+            if actual_solidarity_recipient != &expected_solidarity_recipient {
+                log::error!(
+                    "⚖️  VIOLATION PROTOCOLE SOLIDARITÉ: Expected: {}, Got: {}",
                     expected_solidarity_recipient,
                     actual_solidarity_recipient
                 );
-                // Allow flexibility for initial blocks
-                if block.header.height > 100 {
-                    return Err(ChainError::InvalidSolidarityRecipient);
-                }
+
+                // BLOC AUTOMATIQUEMENT REJETÉ - Pas de compromis sur la solidarité
+                return Err(ChainError::InvalidSolidarityRecipient);
             }
+
+            log::info!(
+                "✅ Solidarité protocolaire respectée: {} reçoit 1%",
+                actual_solidarity_recipient
+            );
         }
 
         // Validate other transactions
@@ -392,6 +431,9 @@ pub enum ChainError {
 
     #[error("Invalid solidarity recipient")]
     InvalidSolidarityRecipient,
+
+    #[error("Maximum supply exceeded - inflation prevented")]
+    MaxSupplyExceeded,
 }
 
 #[cfg(test)]
