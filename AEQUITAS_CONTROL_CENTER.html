@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aequitas (AEQ) - Centre de Contrôle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .logo {
+            font-size: 3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .status {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .status-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.online {
+            background: #44ff44;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .card h3 {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .icon {
+            font-size: 1.5em;
+        }
+        
+        .card p {
+            opacity: 0.9;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn.secondary {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .progress {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            height: 8px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(45deg, #44ff44, #44aaff);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .log {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        
+        .log-entry.info {
+            background: rgba(100, 150, 255, 0.2);
+        }
+        
+        .log-entry.success {
+            background: rgba(100, 255, 100, 0.2);
+        }
+        
+        .log-entry.error {
+            background: rgba(255, 100, 100, 0.2);
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .metric {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            opacity: 0.8;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">⚖️ AEQUITAS</div>
+            <div class="subtitle">Centre de Contrôle Décentralisé</div>
+        </div>
+        
+        <div class="status">
+            <div class="status-title">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="statusText">Initialisation...</span>
+            </div>
+            <div class="progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+        
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value" id="blockHeight">0</div>
+                <div class="metric-label">Hauteur de Block</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="difficulty">1M</div>
+                <div class="metric-label">Difficulté</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="supply">0</div>
+                <div class="metric-label">AEQ en Circulation</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="miners">0</div>
+                <div class="metric-label">Mineurs Actifs</div>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <div class="card" onclick="startNode()">
+                <h3><span class="icon">🌐</span> Noeud Complet</h3>
+                <p>Lancez un noeud complet Aequitas pour participer au réseau décentralisé et valider les transactions.</p>
+                <div class="progress">
+                    <div class="progress-bar" id="nodeProgress" style="width: 0%"></div>
+                </div>
+                <button class="btn" id="nodeBtn">Démarrer le Noeud</button>
+            </div>
+            
+            <div class="card" onclick="startMining()">
+                <h3><span class="icon">⛏️</span> Mining</h3>
+                <p>Minez des AEQ avec votre GPU et contribuez à la sécurité du réseau tout en étant récompensé.</p>
+                <div class="progress">
+                    <div class="progress-bar" id="miningProgress" style="width: 0%"></div>
+                </div>
+                <button class="btn" id="miningBtn">Commencer à Miner</button>
+            </div>
+            
+            <div class="card" onclick="openWallet()">
+                <h3><span class="icon">💼</span> Portefeuille</h3>
+                <p>Gérez vos AEQ, créez des transactions et suivez votre solde avec notre interface sécurisée.</p>
+                <div class="progress">
+                    <div class="progress-bar" id="walletProgress" style="width: 0%"></div>
+                </div>
+                <button class="btn" id="walletBtn">Ouvrir le Portefeuille</button>
+            </div>
+            
+            <div class="card" onclick="showDashboard()">
+                <h3><span class="icon">📊</span> Dashboard</h3>
+                <p>Suivez en temps réel l'état du réseau, les statistiques de mining et la progression globale.</p>
+                <button class="btn secondary">Voir Dashboard</button>
+            </div>
+            
+            <div class="card" onclick="showSettings()">
+                <h3><span class="icon">⚙️</span> Configuration</h3>
+                <p>Personnalisez les paramètres de mining, réseau et portefeuille selon vos préférences.</p>
+                <button class="btn secondary">Paramètres</button>
+            </div>
+            
+            <div class="card" onclick="showHelp()">
+                <h3><span class="icon">❓</span> Aide & Support</h3>
+                <p>Accédez à la documentation complète, tutoriels et support communautaire Aequitas.</p>
+                <button class="btn secondary">Documentation</button>
+            </div>
+        </div>
+        
+        <div class="log" id="logConsole">
+            <div class="log-entry info">🚀 Interface Aequitas initialisée avec succès</div>
+            <div class="log-entry info">📡 Connexion au réseau décentralisé...</div>
+            <div class="log-entry success">✅ Components core chargés</div>
+            <div class="log-entry error">⚠️ Compilation native non disponible - mode démo activé</div>
+        </div>
+    </div>
+
+    <script>
+        // Simulation du système Aequitas
+        let blockHeight = 0;
+        let difficulty = 1000000;
+        let supply = 50000000000; // 50 AEQ genesis
+        let miners = 0;
+        let isNodeRunning = false;
+        let isMining = false;
+        let walletUnlocked = false;
+        
+        function updateStatus(text, isOnline = false) {
+            document.getElementById('statusText').textContent = text;
+            const indicator = document.getElementById('statusIndicator');
+            if (isOnline) {
+                indicator.classList.add('online');
+            } else {
+                indicator.classList.remove('online');
+            }
+        }
+        
+        function updateProgress(barId, percent) {
+            document.getElementById(barId).style.width = percent + '%';
+        }
+        
+        function addLog(message, type = 'info') {
+            const logConsole = document.getElementById('logConsole');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = message;
+            logConsole.appendChild(entry);
+            logConsole.scrollTop = logConsole.scrollHeight;
+        }
+        
+        function updateMetrics() {
+            document.getElementById('blockHeight').textContent = blockHeight.toLocaleString();
+            document.getElementById('difficulty').textContent = 
+                difficulty >= 1000000 ? (difficulty/1000000).toFixed(1) + 'M' : 
+                difficulty >= 1000 ? (difficulty/1000).toFixed(1) + 'K' : 
+                difficulty.toString();
+            document.getElementById('supply').textContent = (supply / 1000000000).toFixed(2) + ' AEQ';
+            document.getElementById('miners').textContent = miners.toString();
+        }
+        
+        function startNode() {
+            if (isNodeRunning) return;
+            
+            updateStatus('Démarrage du noeud...', false);
+            updateProgress('nodeProgress', 20);
+            addLog('🌐 Initialisation du noeud Aequitas...', 'info');
+            
+            setTimeout(() => {
+                updateProgress('nodeProgress', 50);
+                addLog('📡 Connexion au réseau P2P...', 'info');
+                
+                setTimeout(() => {
+                    updateProgress('nodeProgress', 80);
+                    addLog('🔗 Synchronisation avec les pairs...', 'info');
+                    
+                    setTimeout(() => {
+                        updateProgress('nodeProgress', 100);
+                        updateStatus('Noeud en ligne', true);
+                        addLog('✅ Noeud connecté au réseau décentralisé', 'success');
+                        document.getElementById('nodeBtn').textContent = 'Arrêter le Noeud';
+                        document.getElementById('nodeBtn').classList.add('secondary');
+                        isNodeRunning = true;
+                        miners = Math.floor(Math.random() * 50) + 10;
+                        updateMetrics();
+                    }, 2000);
+                }, 1500);
+            }, 1000);
+        }
+        
+        function startMining() {
+            if (!isNodeRunning) {
+                addLog('⚠️ Veuillez démarrer le noeud d\'abord', 'error');
+                return;
+            }
+            
+            if (isMining) return;
+            
+            updateProgress('miningProgress', 20);
+            addLog('⛏️ Initialisation du mining AequiHash...', 'info');
+            
+            setTimeout(() => {
+                updateProgress('miningProgress', 50);
+                addLog('🔥 Recherche de solutions Proof-of-Work...', 'info');
+                
+                setTimeout(() => {
+                    updateProgress('miningProgress', 80);
+                    addLog('💰 Validation de block trouvée...', 'success');
+                    
+                    setTimeout(() => {
+                        updateProgress('miningProgress', 100);
+                        addLog('🎉 Block miné avec succès ! +50 AEQ', 'success');
+                        document.getElementById('miningBtn').textContent = 'Arrêter le Mining';
+                        document.getElementById('miningBtn').classList.add('secondary');
+                        isMining = true;
+                        
+                        // Simuler mining
+                        setInterval(() => {
+                            if (isMining) {
+                                blockHeight++;
+                                supply += 50000000000; // 50 AEQ
+                                updateMetrics();
+                                addLog(`⛏️ Block #${blockHeight} miné !`, 'success');
+                            }
+                        }, 5000);
+                    }, 2000);
+                }, 1500);
+            }, 1000);
+        }
+        
+        function openWallet() {
+            if (walletUnlocked) return;
+            
+            updateProgress('walletProgress', 30);
+            addLog('🔓 Déverrouillage du portefeuille...', 'info');
+            
+            setTimeout(() => {
+                updateProgress('walletProgress', 70);
+                addLog('🔐 Chargement des clés cryptographiques...', 'info');
+                
+                setTimeout(() => {
+                    updateProgress('walletProgress', 100);
+                    addLog('💼 Portefeuille prêt', 'success');
+                    document.getElementById('walletBtn').textContent = 'Portefeuille Ouvert';
+                    document.getElementById('walletBtn').classList.add('secondary');
+                    walletUnlocked = true;
+                }, 2000);
+            }, 1000);
+        }
+        
+        function showDashboard() {
+            addLog('📊 Ouverture du dashboard réseau...', 'info');
+            window.open('dashboard.html', '_blank');
+        }
+        
+        function showSettings() {
+            addLog('⚙️ Ouverture des paramètres...', 'info');
+            alert('Paramètres de configuration:\n\n• Pool Mining: Activer/Désactiver\n• GPU Threads: Personnaliser\n• Port Réseau: 23420 (défaut)\n• Sync: Auto/Manuel\n\nFonctionnalité en développement!');
+        }
+        
+        function showHelp() {
+            addLog('📚 Chargement de la documentation...', 'info');
+            alert('📚 Aide Aequitas:\n\n🔧 Installation:\n• Exécutez BUILD_FIX.bat sous Windows\n• Installez Visual Studio Build Tools\n\n⛏️ Mining:\n• GPU optimisé avec AequiHash\n• Résistant aux ASIC\n• Récompenses équitables\n\n🤝 Solidarité:\n• 1% pour les petits mineurs\n• Redistribution automatique\n• Protocole décentralisé\n\n🌐 Réseau:\n• libp2p P2P\n• Découverte Kademlia DHT\n• Pas de serveurs centraux\n\nPour plus d\'aide: github.com/moinecalixte-cyber/aequitas');
+        }
+        
+        // Initialisation
+        window.onload = function() {
+            updateStatus('Interface prête', true);
+            updateMetrics();
+            addLog('🎯 Système Aequitas opérationnel', 'success');
+        };
+    </script>
+</body>
+</html>
