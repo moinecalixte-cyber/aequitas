@@ -11,4 +11,5 @@ pub mod pow;
 pub use aequihash::AequiHash;
 pub use dag::DAG;
 pub use gpu_config::GpuConfig;
+pub use hashrate_classifier::ProportionalRewards;
 pub use pow::ProofOfWork;
